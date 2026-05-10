@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  biliradio:
+    build: .
+    container_name: biliradio
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
