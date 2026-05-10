@@ -1,0 +1,272 @@
+/* ============================================
+   Melody Radio - Stitch Pixel Perfect Styles
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap');
+
+:root {
+  --primary: #5e39e0;
+}
+
+/* Hide Scrollbars */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Webkit */
+}
+
+/* Glass Effects */
+.glass-panel {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-panel-light {
+  backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.inner-glow {
+  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.15);
+}
+
+/* Waveform bars */
+.waveform-bar {
+  width: 4px;
+  /* 3D Cylindrical effect: darker edges, lighter center */
+  background: linear-gradient(to right, 
+    rgba(74, 44, 181, 0.9) 0%, 
+    rgba(94, 57, 224, 1) 50%, 
+    rgba(74, 44, 181, 0.9) 100%
+  );
+  border-radius: 99px;
+  margin: 0 2px;
+  box-shadow: 0 0 10px rgba(94, 57, 224, 0.2);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.waveform-bar.animating {
+  /* Animation now handled by JS for real-time audio sync */
+}
+
+/* Stagger animation delays for a more organic look */
+.waveform-bar:nth-child(2n) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(3n) { animation-delay: 0.2s; }
+.waveform-bar:nth-child(4n) { animation-delay: 0.3s; }
+.waveform-bar:nth-child(5n) { animation-delay: 0.4s; }
+
+.waveform-bar.past {
+  background: var(--primary);
+  opacity: 0.9 !important;
+}
+
+/* Custom Scrollbar for Playlist */
+.playlist-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.playlist-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.playlist-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(94, 57, 224, 0.1);
+  border-radius: 10px;
+}
+
+.playlist-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(94, 57, 224, 0.2);
+}
+
+/* Modal States */
+#addSongModal.active {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+}
+
+#addSongModal.active > div {
+  transform: scale(1) !important;
+}
+
+/* Active Nav/Playlist Item */
+.nav-item-active {
+  background: rgba(94, 57, 224, 0.1);
+  color: #5e39e0;
+  font-weight: 700;
+}
+
+/* Audio Waves Animation in Card */
+.wave-line {
+  width: 3px;
+  background: #5e39e0;
+  border-radius: 99px;
+  animation: bounce-wave 0.8s infinite ease-in-out;
+}
+
+@keyframes bounce-wave {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+/* Hero Title Drop Shadow */
+.hero-title-shadow {
+  text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.live-tag {
+  animation: tag-glow 2s infinite alternate;
+}
+
+@keyframes tag-glow {
+  from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+  to { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+}
+
+.line-clamp-3 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* ========== TextType Component ========== */
+.text-type {
+  display: block;
+  text-align: center;
+}
+
+.text-type__content {
+  display: inline;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+.text-type__cursor {
+  display: inline;
+  margin-left: 2px;
+  color: var(--primary);
+  font-weight: bold;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+
+/* Variable Proximity Effect */
+.variable-proximity {
+  font-family: 'Roboto Flex', sans-serif !important;
+  will-change: font-variation-settings;
+}
+
+/* SortableJS Styles */
+.sortable-ghost {
+  opacity: 0.4;
+  background: var(--primary) !important;
+  border: 1px dashed var(--primary);
+}
+
+.playlist-item {
+  cursor: grab;
+}
+
+.playlist-item:active {
+  cursor: grabbing;
+}
+
+
+#heroTitle {
+  transition: color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--hero-text-color, #ffffff);
+  mix-blend-mode: difference;
+}
+
+#heroSubtitle {
+  transition: color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--hero-subtext-color, #ffffff);
+  mix-blend-mode: difference;
+}
+
+/* Adaptive Text Shadows removed for pure contrast approach */
+
+/* Scrim removed for pure contrast approach */
+
+
+
+[data-theme="light"] .material-symbols-outlined {
+  color: var(--hero-text-color) !important;
+}
+
+[data-theme="light"] #listenerCount {
+  color: var(--hero-text-color) !important;
+}
+
+.live-tag {
+  transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--hero-accent-soft, rgba(239, 68, 68, 0.1)) !important;
+  border-color: var(--hero-accent, rgba(239, 68, 68, 0.3)) !important;
+  color: var(--hero-accent, rgb(239, 68, 68)) !important;
+}
+
+.live-tag span span:last-child {
+  background-color: var(--hero-accent, rgb(239, 68, 68)) !important;
+}
+
+.live-tag span span:first-child {
+  background-color: var(--hero-accent, rgb(239, 68, 68)) !important;
+}
+
+.hero-stats-card {
+  background: var(--hero-accent-soft, rgba(255, 255, 255, 0.25));
+  border-color: var(--hero-accent, rgba(255, 255, 255, 0.3));
+}
+
+.hero-stats-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--hero-accent-soft, rgba(255, 255, 255, 0.08));
+  border-color: var(--hero-ui-subcolor, rgba(255, 255, 255, 0.12));
+  color: var(--hero-ui-color, #ffffff) !important;
+}
+
+.hero-stats-card .material-symbols-outlined,
+.hero-stats-card #listenerCount,
+.hero-stats-card .hero-subtext {
+  color: var(--hero-ui-color, #ffffff) !important;
+}
+
+.hero-stats-card .hero-subtext {
+  opacity: 0.85;
+}
+
+.hero-stats-card .border-l {
+  border-color: var(--hero-ui-subcolor, rgba(255, 255, 255, 0.2)) !important;
+}
+
+[data-theme="light"] .hero-stats-card .text-white\/80 {
+  color: var(--hero-ui-color) !important;
+}
+
+.live-tag {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+  transition: all 1.2s ease;
+}
+
+[data-theme="light"] .live-tag {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #b91c1c;
+  box-shadow: none;
+}
+#magicRingsContainer {
+  mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+}

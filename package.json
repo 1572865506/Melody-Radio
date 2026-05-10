@@ -1,0 +1,13 @@
+{
+  "name": "bili-radio",
+  "version": "1.0.0",
+  "description": "Bilibili 音乐电台 - 纯音频电台体验",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
