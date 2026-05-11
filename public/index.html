@@ -7,11 +7,11 @@
   <title>Melody Radio - 治愈系音乐电台</title>
 
   <!-- UI Frameworks -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-  <script src="https://unpkg.com/fast-average-color/dist/index.browser.min.js"></script>
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries,line-clamp"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fast-average-color/dist/index.browser.min.js"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap"
     rel="stylesheet" />
   <link
@@ -61,11 +61,37 @@
     }
   </script>
 
+  <style>
+    /* Absolute Mobile Full-Screen Fix */
+    @media (max-width: 1023px) {
+      body {
+        padding: 0 !important;
+        margin: 0 !important;
+        height: 100dvh !important;
+        width: 100vw !important;
+        display: block !important;
+        overflow: hidden !important;
+      }
+
+      #mainInterface {
+        width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        margin: 0 !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+      }
+    }
+  </style>
+
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body
-  class="bg-[#1a1a2e] text-on-surface font-sans overflow-hidden h-screen w-screen flex items-center justify-center relative p-4 lg:p-8">
+  class="bg-[#0a0a0b] text-on-surface font-sans overflow-hidden min-h-[100dvh] w-screen lg:flex lg:items-center lg:justify-center relative p-0">
 
   <!-- Outer Canvas Background (Dynamic) -->
   <div class="absolute inset-0 z-0 overflow-hidden">
@@ -75,47 +101,53 @@
     <div class="absolute inset-0 bg-black/20"></div>
   </div>
 
-  <!-- Music Player Interface (Floating Window) -->
-  <div
-    class="relative z-10 w-full max-w-[1440px] h-full max-h-[900px] bg-background rounded-[32px] lg:rounded-[40px] shadow-[0_32px_120px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col border border-white/10">
-    <div class="flex flex-1 overflow-hidden">
 
-      <!-- ========== Sidebar ========== -->
-      <aside
-        class="w-sidebar-width h-full border-r border-white/5 bg-gradient-to-b from-surface/95 via-surface/90 to-surface/95 backdrop-blur-3xl flex flex-col py-8 shrink-0">
-        <div class="space-y-8 flex-grow px-6 overflow-hidden flex flex-col">
-          <!-- Brand Logo -->
-          <div class="flex items-center gap-3.5 px-2 flex-shrink-0">
-            <div class="p-2 rounded-xl bg-primary/10">
-              <span class="material-symbols-outlined text-primary text-[28px]">radio</span>
-            </div>
-            <div>
-              <h1 class="text-[18px] font-bold text-primary tracking-tight">Melody Radio</h1>
-              <p class="text-[10px] text-on-surface-variant/40 font-semibold tracking-widest uppercase">Bilibili 视频转音频
-              </p>
-            </div>
-          </div>
+  <!-- ========== Main Interface ========== -->
+  <div id="mainInterface"
+    class="relative z-10 w-full lg:max-w-[1440px] h-[100dvh] lg:h-full lg:max-h-[900px] bg-background rounded-none lg:rounded-[40px] shadow-none lg:shadow-[0_32px_120px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col border-none lg:border lg:border-white/10">
+    <!-- Mobile Overlay (Inside Main Container to share Z-index context) -->
+    <div id="mobileOverlay"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[85] opacity-0 pointer-events-none transition-all duration-500">
+    </div>
 
-          <!-- Quick Add Section -->
-          <div class="px-2">
-            <div class="relative group">
-              <label for="quickAddInput" class="absolute left-3 top-1/2 -translate-y-1/2 cursor-pointer">
-                <span
-                  class="material-symbols-outlined text-[18px] text-on-surface-variant/30 group-focus-within:text-primary transition-colors">link</span>
-              </label>
-              <input type="text" id="quickAddInput"
-                class="w-full bg-surface-container border-none rounded-2xl py-3 pl-10 pr-4 text-xs focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/30 transition-all"
-                placeholder="粘贴 B站链接或 BV号...">
-              <button id="btnQuickAdd"
-                class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all opacity-0 group-focus-within:opacity-100">
-                <span class="material-symbols-outlined text-[18px]">add</span>
-              </button>
+    <div class="flex flex-1 overflow-hidden min-h-0">
+      <!-- Sidebar (PC: Integrated, Mobile: Floating Drawer) -->
+      <aside id="playlistSidebar"
+        class="fixed inset-y-4 left-4 w-[280px] z-[150] lg:z-[20] -translate-x-[calc(100%+32px)] lg:relative lg:inset-0 lg:translate-x-0 lg:w-sidebar-width h-[calc(100%-2rem)] lg:h-full border border-white/10 lg:border-none lg:border-r lg:border-white/5 bg-gradient-to-b from-surface/95 via-surface/90 to-surface/95 backdrop-blur-3xl flex flex-col py-8 shrink-0 rounded-[28px] lg:rounded-none transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)">
+        <div class="flex-grow px-6 flex flex-col min-h-0">
+          <!-- Brand Logo & Quick Add -->
+          <div class="flex-shrink-0 pt-8 pb-6 space-y-8">
+            <div class="flex items-center gap-3.5 px-2">
+              <div class="p-2 rounded-xl bg-primary/10">
+                <span class="material-symbols-outlined text-primary text-[28px]">radio</span>
+              </div>
+              <div>
+                <h1 class="text-[18px] font-bold text-primary tracking-tight">Melody Radio</h1>
+                <p class="text-[10px] text-on-surface-variant/40 font-semibold tracking-widest uppercase">Bilibili 视频转音频
+                </p>
+              </div>
+            </div>
+
+            <div class="px-2">
+              <div class="relative group">
+                <label for="quickAddInput" class="absolute left-3 top-1/2 -translate-y-1/2 cursor-pointer">
+                  <span
+                    class="material-symbols-outlined text-[18px] text-on-surface-variant/30 group-focus-within:text-primary transition-colors">link</span>
+                </label>
+                <input type="text" id="quickAddInput"
+                  class="w-full bg-surface-container border-none rounded-2xl py-3 pl-10 pr-4 text-xs focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/30 transition-all"
+                  placeholder="粘贴 B站链接或 BV号...">
+                <button id="btnQuickAdd"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all opacity-0 group-focus-within:opacity-100">
+                  <span class="material-symbols-outlined text-[18px]">add</span>
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Playlist Section -->
-          <div class="flex flex-col flex-grow min-h-0">
-            <div class="flex items-center justify-between px-2 mb-4">
+          <div class="flex flex-col h-[43rem] mb-4 min-h-0">
+            <div class="flex items-center justify-between px-2 mb-4 shrink-0">
               <h3 class="text-[11px] font-bold text-on-surface-variant/60 uppercase tracking-widest">播放列表</h3>
               <div class="flex items-center gap-2">
                 <span
@@ -129,36 +161,50 @@
                   id="btnExport" title="导出">output</button>
               </div>
             </div>
-
-            <div class="flex-grow overflow-y-auto playlist-scrollbar pr-1 pb-32" id="playlistContainer">
-              <div class="space-y-1" id="playlistList">
-                <!-- Song items will be injected here -->
-              </div>
-
-              <!-- Empty State -->
-              <div id="emptyState"
-                class="hidden flex flex-col items-center justify-center py-20 text-center opacity-60">
-                <span class="material-symbols-outlined text-[48px] text-primary/30 mb-3">library_music</span>
-                <p class="text-xs text-on-surface-variant mb-4">列表空空如也</p>
-                <button id="btnAddSongEmpty"
-                  class="px-6 py-2 bg-primary/10 text-primary text-[11px] font-bold rounded-full hover:bg-primary hover:text-white transition-all">添加第一首歌</button>
-              </div>
+            <div id="playlistList" class="flex-grow overflow-y-auto pr-2 space-y-2 playlist-scrollbar pb-32 lg:pb-8">
+              <!-- Playlist items will be injected here -->
             </div>
           </div>
         </div>
-
       </aside>
 
       <!-- ========== Main Content ========== -->
-      <main class="flex-1 overflow-hidden pb-40 bg-background" id="mainContent">
+      <main class="flex-1 overflow-hidden pb-40 bg-background relative" id="mainContent">
 
-        <!-- Hero Section -->
-        <section
-          class="relative w-full h-[460px] overflow-hidden bg-background isolate" id="viewRadio">
+        <!-- Mobile Header -->
+        <header class="lg:hidden absolute top-0 inset-x-0 flex items-center justify-between px-6 py-6 z-40">
+          <!-- Pure Gradient Blur Layer (No fill, no pointer events) -->
+          <div class="absolute inset-0 backdrop-blur-xl mask-gradient-b pointer-events-none -z-10"></div>
+
+          <!-- Mobile Menu Button (Hidden here, moved to footer) -->
+          <button id="mobileMenuBtn_hidden"
+            class="hidden relative z-10 w-11 h-11 items-center justify-center bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl text-on-surface active:scale-95 transition-all shadow-lg">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+          <div class="relative z-10 flex flex-col items-center">
+            <span
+              class="text-[10px] font-bold text-primary uppercase tracking-[0.3em] leading-none mb-1.5 opacity-80">Now
+              Streaming</span>
+            <span class="text-sm font-black text-on-surface tracking-tight">Melody Radio</span>
+          </div>
+          <div class="relative z-10 flex items-center gap-2.5">
+            <button id="mobileBtnFavorite"
+              class="w-11 h-11 flex items-center justify-center bg-white/5 rounded-2xl text-on-surface-variant/60 active:scale-90 transition-all border border-white/5 shadow-sm">
+              <span class="material-symbols-outlined text-[20px]">favorite</span>
+            </button>
+            <button id="mobileBtnShare"
+              class="w-11 h-11 flex items-center justify-center bg-white/5 rounded-2xl text-on-surface-variant/60 active:scale-90 transition-all border border-white/5 shadow-sm">
+              <span class="material-symbols-outlined text-[20px]">share</span>
+            </button>
+          </div>
+        </header>
+
+        <section id="viewRadio"
+          class="relative w-full h-[25rem] lg:h-[460px] overflow-hidden bg-background isolate flex flex-col">
           <div class="absolute inset-0 z-0">
             <img id="heroBgImg" alt="Hero Background" class="w-full h-full object-cover transition-all duration-1000"
               src="assets/hero-bg.png" />
-            <!-- Gaussian Blur Gradient Overlay -->
+            <!-- Gaussian Blur Gradient Overlay (Restored for Pixel Perfect Effect) -->
             <div
               class="absolute inset-x-0 bottom-0 h-2/3 backdrop-blur-2xl z-10 [mask-image:linear-gradient(to_top,black_20%,transparent_100%)]">
             </div>
@@ -166,54 +212,69 @@
               class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/40 to-transparent z-20">
             </div>
           </div>
-          <!-- Content Overlay -->
-          <div class="h-full flex flex-col justify-end p-8 lg:px-16 pb-12 lg:pb-16">
+
+          <!-- Content Overlay (Restored with optimized mobile padding) -->
+          <div class="h-full flex flex-col justify-end p-8 lg:px-16 pb-20 lg:pb-16 z-30">
             <div class="flex justify-between w-full max-w-7xl mx-auto items-start">
-            <div class="max-w-xl">
-              <div class="flex items-center gap-4 mb-3">
-                <h2 id="heroTitle"
-                  class="text-[36px] lg:text-[48px] font-bold tracking-tight leading-[1.1] drop-shadow-lg line-clamp-3 overflow-hidden">
-                  日落与晚风</h2>
+              <div class="max-w-xl">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 mb-4">
+                  <div
+                    class="live-tag w-fit flex items-center gap-2 px-3.5 py-1.5 backdrop-blur-md border rounded-full text-[10px] font-black tracking-widest uppercase whitespace-nowrap lg:order-2">
+                    <span class="relative flex h-2 w-2">
+                      <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-current"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+                    </span>
+                    直播中
+                  </div>
+                  <h2 id="heroTitle"
+                    class="block w-full text-[32px] lg:text-[48px] font-black tracking-tight leading-[1.1] drop-shadow-lg lg:order-1 line-clamp-3 overflow-hidden break-all whitespace-normal">
+                    日落与晚风</h2>
+                </div>
+                <div class="flex items-center flex-wrap gap-x-4 gap-y-2 mb-6">
+                  <p id="heroSubtitle" class="text-[16px] lg:text-[22px] font-medium">治愈系音乐电台</p>
+                  <!-- Compact Mobile Listener Count -->
+                  <div
+                    class="lg:hidden flex items-center gap-1.5 px-3 py-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-full opacity-80">
+                    <span class="material-symbols-outlined text-[16px]">group</span>
+                    <span id="listenerCountMobile" class="text-[12px] font-bold tabular-nums">947</span>
+                  </div>
+                </div>
+
+                <!-- Desktop Stats Card (Hidden on Mobile) -->
                 <div
-                  class="live-tag flex-shrink-0 flex items-center gap-2 px-3.5 py-1.5 backdrop-blur-md border rounded-full text-[10px] font-black tracking-widest uppercase whitespace-nowrap">
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-current"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
-                  </span>
-                  直播中
+                  class="hidden lg:inline-flex hero-stats-card items-center gap-5 px-5 py-3 backdrop-blur-xl border rounded-2xl mt-4 shadow-[0_4px_16px_rgba(0,0,0,0.1)] transition-all duration-1000">
+                  <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-[20px]">group</span>
+                    <span id="listenerCount" class="font-bold text-[15px] tabular-nums">947</span>
+                    <span class="hero-subtext text-[13px] font-medium ml-0.5">位听众正在收听</span>
+                  </div>
+                  <div class="hero-subtext text-[13px] font-medium border-l pl-5 hidden sm:block">
+                    让音乐寻找你内心的平静与温暖</div>
                 </div>
               </div>
-              <p id="heroSubtitle" class="text-[16px] lg:text-[22px] mb-6 font-medium">治愈系音乐电台</p>
 
-              <div
-                class="hero-stats-card inline-flex items-center gap-5 px-5 py-3 backdrop-blur-xl border rounded-2xl mt-4 shadow-[0_4px_16px_rgba(0,0,0,0.1)] transition-all duration-1000">
-                <div class="flex items-center gap-2.5">
-                  <span class="material-symbols-outlined text-[20px]">group</span>
-                  <span id="listenerCount" class="font-bold text-[15px] tabular-nums">947</span>
-                  <span class="hero-subtext text-[13px] font-medium ml-0.5">位听众正在收听</span>
+              <!-- Album Art Floating -->
+              <div class="hidden lg:block relative group mr-10 mt-12">
+                <!-- Magic Rings Backdrop (Relocated and Re-verified ID) -->
+                <div id="magicRingsContainer" class="absolute -inset-48 z-0 pointer-events-none"></div>
+                <div
+                  class="w-64 h-64 rounded-[2rem] p-[2px] bg-gradient-to-br from-white/40 via-white/10 to-transparent shadow-2xl relative overflow-hidden backdrop-blur-sm z-10">
+                  <img id="heroCoverImg" alt="Art" class="w-full h-full object-cover rounded-[1.9rem]"
+                    src="assets/hero-bg.png" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-primary/30 to-transparent pointer-events-none">
+                  </div>
                 </div>
-                <div class="hero-subtext text-[13px] font-medium border-l pl-5 hidden sm:block">
-                  让音乐寻找你内心的平静与温暖</div>
+                <div class="absolute -inset-4 border border-white/10 rounded-[2.5rem] opacity-30"></div>
+                <div class="absolute -inset-8 border border-white/5 rounded-[3rem] opacity-20"></div>
               </div>
-            </div>
-
-            <!-- Album Art Floating -->
-            <div class="hidden lg:block relative group mr-10 mt-12">
-              <!-- Magic Rings Backdrop -->
-              <div id="magicRingsContainer" class="absolute -inset-48 z-0 pointer-events-none"></div>
-              <div
-                class="w-64 h-64 rounded-[2rem] p-[2px] bg-gradient-to-br from-white/40 via-white/10 to-transparent shadow-2xl relative overflow-hidden backdrop-blur-sm z-10">
-                <img id="heroCoverImg" alt="Art" class="w-full h-full object-cover rounded-[1.9rem]"
-                  src="assets/hero-bg.png" />
-                <div class="absolute inset-0 bg-gradient-to-t from-primary/30 to-transparent pointer-events-none"></div>
-              </div>
-              <div class="absolute -inset-4 border border-white/10 rounded-[2.5rem] opacity-30"></div>
-              <div class="absolute -inset-8 border border-white/5 rounded-[3rem] opacity-20"></div>
             </div>
           </div>
 
-          <!-- Top Right Actions -->
-          <div class="absolute top-8 right-8 flex items-center gap-2 z-20 p-1.5 rounded-full backdrop-blur-md border border-white/10" style="background: rgb(196 196 196 / 20%);">
+          <!-- Desktop Top Right Actions -->
+          <div
+            class="hidden lg:flex absolute top-8 right-8 items-center gap-2 z-40 p-1.5 rounded-full backdrop-blur-md border border-white/10"
+            style="background: rgb(196 196 196 / 20%);">
             <button
               class="w-10 h-10 flex items-center justify-center rounded-full text-white/90 hover:bg-white/10 transition-all duration-300">
               <span class="material-symbols-outlined text-[20px]">favorite</span>
@@ -223,21 +284,21 @@
               <span class="material-symbols-outlined text-[20px]">share</span>
             </button>
           </div>
+
         </section>
 
         <!-- Detailed Cards Section -->
-        <section
-          class="px-container-padding max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mt-[-30px] relative z-20">
-          <!-- AI Healing Host Section (Replacing Comments) -->
-          <div class="lg:col-span-2 glass-panel-light p-8 rounded-[2.5rem] shadow-sm inner-glow flex flex-col h-[340px]">
+        <section id="detailsSection"
+          class="px-6 lg:px-container-padding max-w-7xl mx-auto flex lg:grid lg:grid-cols-3 gap-6 lg:gap-8 mt-[-60px] lg:mt-[-30px] relative z-20 overflow-x-auto lg:overflow-x-visible pb-12 lg:pb-0 hide-scrollbar snap-x snap-mandatory">
+          <!-- AI Healing Host Section -->
+          <div
+            class="flex-shrink-0 w-[88vw] lg:w-auto lg:col-span-2 glass-panel-light p-8 rounded-[2.5rem] shadow-sm inner-glow flex flex-col h-[340px] snap-center">
             <div class="flex items-center justify-between mb-6 shrink-0">
               <div class="flex items-center gap-4">
                 <div class="relative">
-                  <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <div
+                    class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                     <span class="material-symbols-outlined text-primary text-[24px] animate-pulse">mic</span>
-                  </div>
-                  <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
-                    <div class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></div>
                   </div>
                 </div>
                 <div>
@@ -245,13 +306,9 @@
                   <p class="text-[10px] text-primary/60 font-bold uppercase tracking-widest">Melody • On Air</p>
                 </div>
               </div>
-              <div class="flex items-end gap-[3px] h-5 pb-1" id="waveformContainer">
-                <!-- Waveform bars -->
-              </div>
             </div>
-            
+
             <div class="flex-grow overflow-y-auto pr-2 flex flex-col justify-center" id="aiHostContainer">
-              <!-- AI Script will be injected here with typing effect -->
               <div class="space-y-6 text-center opacity-40 py-10" id="aiPlaceholder">
                 <span class="material-symbols-outlined text-[48px]">auto_awesome</span>
                 <p class="text-[13px] leading-relaxed max-w-sm mx-auto">
@@ -262,7 +319,8 @@
           </div>
 
           <!-- Radio Story Card -->
-          <div class="glass-panel-light p-8 rounded-[2.5rem] shadow-sm inner-glow">
+          <div
+            class="flex-shrink-0 w-[88vw] lg:w-auto glass-panel-light p-8 rounded-[2.5rem] shadow-sm inner-glow snap-center">
             <h3 class="text-on-surface/90 text-[20px] font-bold mb-6">电台故事</h3>
             <div class="space-y-6">
               <p class="text-on-surface-variant/70 leading-relaxed italic text-[15px]">
@@ -292,55 +350,103 @@
       </div>
     </div>
 
-    <footer class="absolute bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-6rem)] max-w-[70rem] z-50">
-      <div class="glass-panel-light p-4 rounded-[2.5rem] flex items-center justify-between shadow-2xl border border-white/20 inner-glow">
-        <!-- Mini Track Info -->
-        <div class="flex items-center gap-4 w-1/4 pl-[5px]">
-          <img id="miniCover" alt="Playing" class="w-12 h-12 rounded-[1.3rem] object-cover shadow-sm bg-white/5" src=""/>
-          <div class="hidden sm:block overflow-hidden">
+    <footer class="absolute bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-4rem)] max-w-[70rem] z-[100]">
+      <div
+        class="glass-panel-light p-4 rounded-[2.5rem] flex flex-col lg:flex-row items-center justify-between shadow-2xl border border-white/20 inner-glow gap-4">
+
+        <!-- 1. Left Slot: Track Info (PC: Fixed Width, Mobile: Part of Row) -->
+        <div class="hidden lg:flex items-center gap-4 w-1/4 min-w-[200px] shrink-0">
+          <div class="relative group cursor-pointer shrink-0">
+            <img id="miniCover" alt="Playing"
+              class="w-12 h-12 rounded-xl object-cover shadow-sm bg-white/5 transition-transform duration-500 group-hover:scale-105 shrink-0"
+              src="" />
+            <div class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity">
+            </div>
+          </div>
+          <div class="overflow-hidden">
             <p id="miniTitle" class="font-bold text-on-surface text-[14px] leading-tight truncate">未在播放</p>
-            <p id="miniArtist" class="text-[11px] text-on-surface-variant/60 truncate">-</p>
+            <p id="miniArtist" class="text-[11px] text-on-surface-variant/50 truncate mt-0.5">-</p>
           </div>
         </div>
 
-        <!-- Main Controls & Progress -->
-        <div class="flex items-center gap-10">
-          <div class="flex items-center gap-6">
-            <button class="text-on-surface-variant/50 hover:text-primary transition-all" id="btnPrev">
-              <span class="material-symbols-rounded text-[28px]" style="font-variation-settings: 'FILL' 1;">skip_previous</span>
+        <!-- 2. Center Slot: Controls & Progress Cluster -->
+        <div class="flex-1 flex flex-col lg:flex-row items-center w-full lg:max-w-4xl gap-4 px-4 lg:px-0">
+          <!-- Main Controls Row -->
+          <div class="flex items-center justify-center gap-5 lg:gap-6 shrink-0">
+            <button id="mobileMenuBtn"
+              class="lg:hidden w-10 h-10 flex items-center justify-center text-on-surface-variant/50 active:scale-90 transition-all">
+              <span class="material-symbols-outlined text-[24px]">menu</span>
             </button>
-            <button class="w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all" id="btnPlay">
-              <span class="material-symbols-rounded text-[40px] icon-play" style="font-variation-settings: 'FILL' 1;">play_circle</span>
-              <span class="material-symbols-rounded text-[40px] icon-pause hidden" style="font-variation-settings: 'FILL' 1;">pause_circle</span>
+
+            <button
+              class="w-10 h-10 flex items-center justify-center text-on-surface-variant/40 hover:text-primary transition-all active:scale-90"
+              id="btnPrev">
+              <span class="material-symbols-rounded text-[26px] lg:text-[28px]"
+                style="font-variation-settings: 'FILL' 1;">skip_previous</span>
             </button>
-            <button class="text-on-surface-variant/50 hover:text-primary transition-all" id="btnNext">
-              <span class="material-symbols-rounded text-[28px]" style="font-variation-settings: 'FILL' 1;">skip_next</span>
+
+            <button
+              class="w-12 h-12 lg:w-14 lg:h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all"
+              id="btnPlay">
+              <span class="material-symbols-rounded text-[32px] lg:text-[38px] icon-play"
+                style="font-variation-settings: 'FILL' 1;">play_circle</span>
+              <span class="material-symbols-rounded text-[32px] lg:text-[38px] icon-pause hidden"
+                style="font-variation-settings: 'FILL' 1;">pause_circle</span>
+            </button>
+
+            <button
+              class="w-10 h-10 flex items-center justify-center text-on-surface-variant/40 hover:text-primary transition-all active:scale-90"
+              id="btnNext">
+              <span class="material-symbols-rounded text-[26px] lg:text-[28px]"
+                style="font-variation-settings: 'FILL' 1;">skip_next</span>
+            </button>
+
+            <button
+              class="lg:hidden w-10 h-10 flex items-center justify-center text-on-surface-variant/40 hover:text-primary transition-all"
+              id="btnPlayMode_mobile">
+              <span class="material-symbols-outlined text-[22px] play-mode-icon sequence">format_list_numbered</span>
+              <span class="material-symbols-outlined text-[22px] play-mode-icon shuffle hidden">shuffle</span>
+              <span class="material-symbols-outlined text-[22px] play-mode-icon repeat-one hidden">repeat_one</span>
             </button>
           </div>
-          
-          <!-- Compact Progress Bar (In Timer Position) -->
-          <div class="group relative flex flex-col justify-center min-w-[300px] h-10 px-2 select-none" id="progressBar">
-            <div class="flex justify-between items-center mb-1 px-1">
-              <span id="timeCurrent" class="text-[9px] font-mono font-bold text-primary/40">0:00</span>
-              <span id="timeRemaining" class="text-[9px] font-mono font-bold text-primary/40">- 0:00</span>
+
+          <!-- Progress Bar Cluster (Right-shifted on PC, Bottom on Mobile) -->
+          <div class="group relative flex flex-col w-full flex-1 select-none">
+            <!-- Time Labels (Top positions on PC) -->
+            <div class="flex justify-between w-full mb-1.5 px-1">
+              <span id="timeCurrent" class="text-[10px] font-mono font-bold text-on-surface-variant/40">0:00</span>
+              <span id="timeRemaining" class="text-[10px] font-mono font-bold text-on-surface-variant/40">- 0:00</span>
             </div>
-            <div class="relative h-1.5 w-full bg-primary/5 rounded-full overflow-hidden cursor-pointer border border-primary/10">
-              <div class="absolute inset-y-0 left-0 bg-primary transition-all duration-100" id="progressFilled" style="width: 0%"></div>
-              <div class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-300" id="progressBuffered" style="width: 0%"></div>
+            <!-- Progress Scrubber -->
+            <div
+              class="relative h-1.5 bg-primary/5 rounded-full cursor-pointer border border-primary/5 transition-all group-hover:h-2"
+              id="progressBar">
+              <div class="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-300 rounded-full"
+                id="progressBuffered" style="width: 0%"></div>
+              <div class="absolute inset-y-0 left-0 bg-primary transition-all duration-100 rounded-full"
+                id="progressFilled" style="width: 0%"></div>
             </div>
           </div>
         </div>
 
-        <!-- Volume/Playmode -->
-        <div class="flex items-center gap-8 w-1/4 justify-end">
-          <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-on-surface-variant/50 text-[20px] cursor-pointer" id="btnMute">volume_up</span>
-            <div class="w-24 h-1 bg-outline-variant/20 rounded-full relative overflow-hidden cursor-pointer" id="volumeBar">
+        <!-- 3. Right Slot: Settings & Mode (PC: Fixed Width, Mobile: Hidden/Relocated) -->
+        <div class="hidden lg:flex items-center justify-end w-1/4 min-w-[200px] shrink-0 gap-6 pr-2">
+          <div class="flex items-center gap-4 group/vol">
+            <span
+              class="material-symbols-outlined text-on-surface-variant/40 text-[20px] cursor-pointer hover:text-primary transition-colors"
+              id="btnMute">volume_up</span>
+            <div
+              class="w-24 h-1.5 bg-outline-variant/20 rounded-full relative cursor-pointer group-hover/vol:h-2 transition-all"
+              id="volumeBar">
               <div class="absolute top-0 left-0 h-full bg-primary/60 w-2/3 rounded-full" id="volumeFilled"></div>
             </div>
           </div>
-          <button class="text-on-surface-variant/40 hover:text-primary transition-all" id="btnPlayMode">
-            <span class="material-symbols-outlined text-[22px]">shuffle</span>
+          <button
+            class="w-10 h-10 flex items-center justify-center text-on-surface-variant/40 hover:text-primary transition-all active:rotate-12"
+            id="btnPlayMode">
+            <span class="material-symbols-outlined text-[22px] play-mode-icon sequence">format_list_numbered</span>
+            <span class="material-symbols-outlined text-[22px] play-mode-icon shuffle hidden">shuffle</span>
+            <span class="material-symbols-outlined text-[22px] play-mode-icon repeat-one hidden">repeat_one</span>
           </button>
         </div>
       </div>

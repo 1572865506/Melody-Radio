@@ -19,6 +19,7 @@ const Player = {
       btnPrev: document.getElementById('btnPrev'),
       btnNext: document.getElementById('btnNext'),
       btnPlayMode: document.getElementById('btnPlayMode'),
+      btnPlayModeMobile: document.getElementById('btnPlayMode_mobile'),
       btnMute: document.getElementById('btnMute'),
       progressBar: document.getElementById('progressBar'),
       progressFilled: document.getElementById('progressFilled'),
@@ -52,6 +53,9 @@ const Player = {
       iconsPause: document.querySelectorAll('.icon-pause'),
       iconVolume: document.querySelector('.icon-volume'),
       iconMuted: document.querySelector('.icon-muted'),
+      iconsSequence: document.querySelectorAll('.play-mode-icon.sequence'),
+      iconsShuffle: document.querySelectorAll('.play-mode-icon.shuffle'),
+      iconsRepeatOne: document.querySelectorAll('.play-mode-icon.repeat-one'),
       // Waveform
       waveformContainer: document.getElementById('waveformContainer'),
       dockWaveform: document.getElementById('dockWaveform'),
@@ -113,7 +117,22 @@ const Player = {
     this.audio.addEventListener('pause', () => { this.setPlayingState(false); this.saveState(); });
     this.audio.addEventListener('progress', () => this.updateBuffered());
     this.audio.addEventListener('error', (e) => {
-      console.error('Audio error:', e);
+      const error = this.audio.error;
+      let msg = 'Unknown audio error';
+      if (error) {
+        switch (error.code) {
+          case 1: msg = 'MEDIA_ERR_ABORTED: Fetching process aborted by user'; break;
+          case 2: msg = 'MEDIA_ERR_NETWORK: Network error'; break;
+          case 3: msg = 'MEDIA_ERR_DECODE: Decoding error'; break;
+          case 4: msg = 'MEDIA_ERR_SRC_NOT_SUPPORTED: Format not supported or source unreachable'; break;
+        }
+      }
+      console.error('Audio Error Details:', { 
+        code: error ? error.code : 'N/A', 
+        message: msg, 
+        src: this.audio.src,
+        event: e 
+      });
       this.setPlayingState(false);
     });
 
@@ -126,6 +145,19 @@ const Player = {
       const idx = Playlist.nextSong(this.playMode);
       if (idx >= 0) Playlist.playSong(idx);
     });
+
+    // Handle auto-play block: try to play on first user interaction
+    const resumeOnInteraction = () => {
+      if (this.playPending) {
+        this.playPending = false;
+        console.log('User interacted, resuming pending playback...');
+        this.audio.play().catch(err => console.error('Delayed play failed:', err));
+      }
+    };
+    document.addEventListener('click', resumeOnInteraction, { once: true });
+    document.addEventListener('keydown', resumeOnInteraction, { once: true });
+    document.addEventListener('touchstart', resumeOnInteraction, { once: true });
+
     // Timer Scrubber Seek
     if (this.els.timerScrubber) {
       const handleSeek = (e) => {
@@ -152,6 +184,7 @@ const Player = {
     }
 
     if (this.els.btnPlayMode) this.els.btnPlayMode.addEventListener('click', () => this.cyclePlayMode());
+    if (this.els.btnPlayModeMobile) this.els.btnPlayModeMobile.addEventListener('click', () => this.cyclePlayMode());
     if (this.els.btnMute) this.els.btnMute.addEventListener('click', () => this.toggleMute());
 
     // Progress bar seeking (waveform)
@@ -247,8 +280,9 @@ const Player = {
           })
           .catch(e => {
             console.warn('Auto-play blocked, wait for user interaction');
+            this.playPending = true;
             // 如果自动播放被拦截，依然尝试在元数据加载后跳转进度
-            setTimeout(performSeek, 500);
+            performSeek();
           });
       } else {
         setTimeout(performSeek, 100);
@@ -265,7 +299,7 @@ const Player = {
     // Update Hero
     if (this.els.heroTitle) {
       this.els.heroTitle.textContent = song.title;
-      // Initialize Variable Proximity Effect
+      // Initialize Variable Proximity Effect (Restored for all platforms)
       if (typeof VariableProximity !== 'undefined') {
         VariableProximity.init(this.els.heroTitle, {
           radius: 200,
@@ -412,14 +446,18 @@ const Player = {
   },
 
   updatePlayModeUI() {
-    if (this.els.iconSequence) this.els.iconSequence.classList.toggle('hidden', this.playMode !== 'sequence');
-    if (this.els.iconShuffle) this.els.iconShuffle.classList.toggle('hidden', this.playMode !== 'shuffle');
-    if (this.els.iconRepeatOne) this.els.iconRepeatOne.classList.toggle('hidden', this.playMode !== 'repeat-one');
-    if (this.els.btnPlayMode) {
-      this.els.btnPlayMode.classList.toggle('active', this.playMode !== 'sequence');
-      const titles = { 'sequence': '顺序播放', 'shuffle': '随机播放', 'repeat-one': '单曲循环' };
-      this.els.btnPlayMode.title = titles[this.playMode];
-    }
+    if (this.els.iconsSequence) this.els.iconsSequence.forEach(el => el.classList.toggle('hidden', this.playMode !== 'sequence'));
+    if (this.els.iconsShuffle) this.els.iconsShuffle.forEach(el => el.classList.toggle('hidden', this.playMode !== 'shuffle'));
+    if (this.els.iconsRepeatOne) this.els.iconsRepeatOne.forEach(el => el.classList.toggle('hidden', this.playMode !== 'repeat-one'));
+
+    const btns = [this.els.btnPlayMode, this.els.btnPlayModeMobile];
+    btns.forEach(btn => {
+      if (btn) {
+        btn.classList.toggle('active', this.playMode !== 'sequence');
+        const titles = { 'sequence': '顺序播放', 'shuffle': '随机播放', 'repeat-one': '单曲循环' };
+        btn.title = titles[this.playMode] || '';
+      }
+    });
   },
 
   toggleMute() {

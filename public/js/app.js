@@ -22,8 +22,12 @@
       addSongHint: document.getElementById('addSongHint'),
       fileImport: document.getElementById('fileImport'),
       listenerCountEl: document.getElementById('listenerCount'),
+      listenerCountMobileEl: document.getElementById('listenerCountMobile'),
       quickAddInput: document.getElementById('quickAddInput'),
-      btnQuickAdd: document.getElementById('btnQuickAdd')
+      btnQuickAdd: document.getElementById('btnQuickAdd'),
+      mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+      mobileOverlay: document.getElementById('mobileOverlay'),
+      playlistSidebar: document.getElementById('playlistSidebar')
     };
 
     // 2. Initialize Magic Rings Effect (Before song loading)
@@ -108,14 +112,25 @@
   }
 
   function animateListenerCount() {
-    if (!els.listenerCountEl) return;
+    const el = els.listenerCountEl;
+    const mobileEl = els.listenerCountMobileEl;
+    if (!el && !mobileEl) return;
+    
     const base = 800 + Math.floor(Math.random() * 600);
-    els.listenerCountEl.textContent = base.toLocaleString();
+    const update = (val) => {
+      const formatted = val.toLocaleString();
+      if (el) el.textContent = formatted;
+      if (mobileEl) mobileEl.textContent = formatted;
+    };
+
+    update(base);
+    
     setInterval(() => {
       const delta = Math.floor(Math.random() * 20) - 8;
-      const current = parseInt(els.listenerCountEl.textContent.replace(/,/g, '')) || base;
+      const currentText = el ? el.textContent : (mobileEl ? mobileEl.textContent : "800");
+      const current = parseInt(currentText.replace(/,/g, '')) || base;
       const next = Math.max(500, current + delta);
-      els.listenerCountEl.textContent = next.toLocaleString();
+      update(next);
     }, 5000);
   }
 
@@ -180,6 +195,21 @@
           const val = els.quickAddInput.value.trim();
           if (val) handleAddSong(val);
         }
+      });
+    }
+
+    // Mobile Menu Toggle
+    if (els.mobileMenuBtn) {
+      els.mobileMenuBtn.addEventListener('click', () => {
+        els.playlistSidebar.classList.add('active');
+        els.mobileOverlay.classList.add('active');
+      });
+    }
+
+    if (els.mobileOverlay) {
+      els.mobileOverlay.addEventListener('click', () => {
+        els.playlistSidebar.classList.remove('active');
+        els.mobileOverlay.classList.remove('active');
       });
     }
   }

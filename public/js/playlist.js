@@ -155,6 +155,14 @@ const Playlist = {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.playlist-item-remove')) return;
         this.playSong(parseInt(item.dataset.index));
+        
+        // Auto-close mobile drawer if open
+        const sidebar = document.getElementById('playlistSidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        if (sidebar && sidebar.classList.contains('active')) {
+          sidebar.classList.remove('active');
+          if (overlay) overlay.classList.remove('active');
+        }
       });
     });
     listEl.querySelectorAll('.playlist-item-remove').forEach(btn => {

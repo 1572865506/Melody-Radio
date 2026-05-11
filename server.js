@@ -114,13 +114,23 @@ function proxyStream(url, headers, req, res, redirectCount = 0) {
       return proxyStream(redirectUrl, headers, req, res, redirectCount + 1);
     }
 
-    // 过滤 undefined 头
+    // 诊断日志
+    console.log(`[Proxy] Upstream Status: ${proxyRes.statusCode}, Type: ${proxyRes.headers['content-type']}`);
+
+    // 过滤并规范响应头
     const responseHeaders = {
       'Accept-Ranges': 'bytes',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'no-cache',
     };
-    if (proxyRes.headers['content-type']) responseHeaders['Content-Type'] = proxyRes.headers['content-type'];
+
+    // 强制设置音频 Content-Type，防止浏览器因 octet-stream 报错 (MEDIA_ERR_DECODE)
+    if (proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('audio')) {
+      responseHeaders['Content-Type'] = proxyRes.headers['content-type'];
+    } else {
+      responseHeaders['Content-Type'] = 'audio/mp4'; // B站 DASH 音频默认为 m4a/mp4
+    }
+
     if (proxyRes.headers['content-length']) responseHeaders['Content-Length'] = proxyRes.headers['content-length'];
     if (proxyRes.headers['content-range']) responseHeaders['Content-Range'] = proxyRes.headers['content-range'];
 

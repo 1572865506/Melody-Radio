@@ -67,7 +67,8 @@
 
 /* Custom Scrollbar for Playlist */
 .playlist-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  display: block !important;
+  width: 5px;
 }
 
 .playlist-scrollbar::-webkit-scrollbar-track {
@@ -75,7 +76,7 @@
 }
 
 .playlist-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(94, 57, 224, 0.1);
+  background: rgba(94, 57, 224, 0.3);
   border-radius: 10px;
 }
 
@@ -123,9 +124,23 @@
   animation: tag-glow 2s infinite alternate;
 }
 
-@keyframes tag-glow {
-  from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
-  to { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+/* Mobile Sidebar & Overlay States */
+#playlistSidebar.active {
+  transform: translateX(0);
+}
+
+#mobileOverlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Hide scrollbar utility */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .line-clamp-3 {
@@ -182,13 +197,11 @@
 #heroTitle {
   transition: color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--hero-text-color, #ffffff);
-  mix-blend-mode: difference;
 }
 
 #heroSubtitle {
   transition: color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--hero-subtext-color, #ffffff);
-  mix-blend-mode: difference;
 }
 
 /* Adaptive Text Shadows removed for pure contrast approach */
@@ -269,4 +282,10 @@
 #magicRingsContainer {
   mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
   -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+}
+
+/* Mobile Header Mask */
+.mask-gradient-b {
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 90%);
+  mask-image: linear-gradient(to bottom, black 50%, transparent 90%);
 }
