@@ -7,8 +7,15 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - CACHE_MB=500
+    volumes:
+      # 音频缓存持久化，容器重建后已缓存的歌曲不丢失
+      - biliradio-cache:/app/.cache
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  biliradio-cache:

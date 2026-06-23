@@ -68,8 +68,9 @@ const Player = {
     const state = Storage.loadPlayerState();
     this.playMode = state.playMode || 'sequence';
     this.volume = state.volume ?? 0.8;
+    this._muted = false;
     if (this.audio) {
-      this.audio.volume = this.volume;
+      this.applyVolume();
       this.bindEvents();
     }
     this.updateVolumeUI();
@@ -127,13 +128,14 @@ const Player = {
           case 4: msg = 'MEDIA_ERR_SRC_NOT_SUPPORTED: Format not supported or source unreachable'; break;
         }
       }
-      console.error('Audio Error Details:', { 
-        code: error ? error.code : 'N/A', 
-        message: msg, 
+      console.error('Audio Error Details:', {
+        code: error ? error.code : 'N/A',
+        message: msg,
         src: this.audio.src,
-        event: e 
+        event: e
       });
       this.setPlayingState(false);
+      this.handlePlaybackError(error ? error.code : 0);
     });
 
     if (this.els.btnPlay) this.els.btnPlay.addEventListener('click', () => this.toggle());
@@ -197,8 +199,8 @@ const Player = {
     if (this.els.volumeBar) {
       this.setupSlider(this.els.volumeBar, (pct) => {
         this.volume = pct;
-        this.audio.volume = pct;
-        this.audio.muted = false;
+        this._muted = false;
+        this.applyVolume();
         this.updateVolumeUI();
         this.saveState();
       });
@@ -258,9 +260,42 @@ const Player = {
     document.addEventListener('touchend', () => { dragging = false; });
   },
 
+  // 播放出错时自动恢复：先重试当前歌一次，仍失败则跳下一首
+  handlePlaybackError(code) {
+    if (code === 1) return; // MEDIA_ERR_ABORTED：通常是切歌导致，无需处理
+    const song = Playlist.getCurrentSong();
+    if (!song) return;
+    if ((this._errorRetry || 0) < 1) {
+      this._errorRetry = (this._errorRetry || 0) + 1;
+      const resumeAt = this.audio.currentTime || 0;
+      console.warn(`[Player] 播放中断，自动重试当前歌曲 (从 ${resumeAt.toFixed(1)}s)`);
+      setTimeout(() => { if (Playlist.getCurrentSong() === song) this.loadSong(song, resumeAt, true); }, 800);
+    } else {
+      console.warn('[Player] 重试失败，自动跳到下一首');
+      this._errorRetry = 0;
+      const mode = this.playMode === 'repeat-one' ? 'normal' : this.playMode;
+      const nextIdx = Playlist.nextSong(mode);
+      if (nextIdx >= 0) Playlist.playSong(nextIdx);
+    }
+  },
+
+  // 预缓存下一首，实现无缝切歌并避免上游波动
+  prefetchNext() {
+    try {
+      const songs = Playlist.songs;
+      if (!songs || songs.length < 2 || this.playMode === 'repeat-one') return;
+      const next = songs[(Playlist.currentIndex + 1) % songs.length];
+      if (!next || !next.bvid) return;
+      const url = `/api/prefetch?bvid=${next.bvid}${next.cid ? `&cid=${next.cid}` : ''}`;
+      fetch(url).catch(() => {});
+    } catch (e) {}
+  },
+
   loadSong(song, seekTime = 0, startPlay = true) {
     if (!song) return;
+    if (song.bvid !== this._lastBvid) { this._errorRetry = 0; this._lastBvid = song.bvid; }
     this.audio.src = `/api/audio-stream?bvid=${song.bvid}&cid=${song.cid}`;
+    this.prefetchNext();
     // 核心逻辑：使用更兼容的方式进行跳转（适配 Safari 和 Chrome 的不同行为）
     const performSeek = () => {
       if (seekTime > 0 && this.audio.duration && this.audio.duration > seekTime) {
@@ -271,7 +306,8 @@ const Player = {
 
     const onCanPlay = () => {
       this.audio.removeEventListener('canplay', onCanPlay);
-      
+      this._errorRetry = 0; // 成功起播，重置重试计数
+
       if (startPlay) {
         this.audio.play()
           .then(() => {
@@ -460,13 +496,22 @@ const Player = {
     });
   },
 
+  // 同时控制 GainNode(接管后唯一有效) 和 audio.volume(接管前的回退)
+  applyVolume() {
+    const v = this._muted ? 0 : this.volume;
+    if (this.gainNode) this.gainNode.gain.value = v;
+    this.audio.volume = this.volume;
+    this.audio.muted = this._muted;
+  },
+
   toggleMute() {
-    this.audio.muted = !this.audio.muted;
+    this._muted = !this._muted;
+    this.applyVolume();
     this.updateVolumeUI();
   },
 
   updateVolumeUI() {
-    const muted = this.audio.muted;
+    const muted = this._muted;
     const vol = muted ? 0 : this.volume;
     if (this.els.volumeFilled) this.els.volumeFilled.style.width = (vol * 100) + '%';
     if (this.els.volumeHandle) this.els.volumeHandle.style.left = (vol * 100) + '%';
@@ -491,8 +536,12 @@ const Player = {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.audioCtx.createAnalyser();
       const source = this.audioCtx.createMediaElementSource(this.audio);
+      // 关键：接管音频后 audio.volume 失效，必须用 GainNode 控制音量
+      this.gainNode = this.audioCtx.createGain();
       source.connect(this.analyser);
-      this.analyser.connect(this.audioCtx.destination);
+      this.analyser.connect(this.gainNode);
+      this.gainNode.connect(this.audioCtx.destination);
+      this.applyVolume(); // 同步当前音量到增益节点
       this.analyser.fftSize = 512;
       this.analyser.smoothingTimeConstant = 0.5; // More snappy movement
       const bufferLength = this.analyser.frequencyBinCount;

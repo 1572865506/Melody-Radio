@@ -62,6 +62,18 @@
   </script>
 
   <style>
+    /* 桌面端按视口高度整体缩放：卡片为 1440×900 设计，
+       在 1080p（尤其 125% 缩放，等效高度 < 900）等较小屏幕上自动缩小以完整显示 */
+    @media (min-width: 1024px) and (max-height: 900px) {
+      #mainInterface { zoom: 0.9; }
+    }
+    @media (min-width: 1024px) and (max-height: 820px) {
+      #mainInterface { zoom: 0.82; }
+    }
+    @media (min-width: 1024px) and (max-height: 740px) {
+      #mainInterface { zoom: 0.72; }
+    }
+
     /* Absolute Mobile Full-Screen Fix */
     @media (max-width: 1023px) {
       body {

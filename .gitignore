@@ -3,3 +3,7 @@ node_modules/
 server.log
 *.log
 .gemini/
+.claude/
+
+# 本地音频缓存
+.cache/

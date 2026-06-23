@@ -3,4 +3,6 @@ npm-debug.log
 .git
 .DS_Store
 .gemini
+.claude
+.cache
 server.log

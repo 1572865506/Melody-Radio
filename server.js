@@ -2,9 +2,101 @@ const express = require('express');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+// ============================================================
+// 本地音频缓存（解决播放中途因上游波动中断的问题）
+// ============================================================
+const CACHE_DIR = path.join(__dirname, '.cache');
+const MAX_CACHE_BYTES = (parseInt(process.env.CACHE_MB, 10) || 500) * 1024 * 1024; // 默认 500MB
+const inFlight = new Map(); // key -> Promise，避免同一首歌并发重复下载
+
+try { fs.mkdirSync(CACHE_DIR, { recursive: true }); } catch (e) {}
+
+function cachePath(bvid, cid) {
+  return path.join(CACHE_DIR, `${bvid}_${cid}.m4a`);
+}
+
+// LRU 清理：超出容量上限时按访问时间删除最旧文件
+function evictIfNeeded() {
+  try {
+    const files = fs.readdirSync(CACHE_DIR)
+      .filter(f => f.endsWith('.m4a'))
+      .map(f => {
+        const fp = path.join(CACHE_DIR, f);
+        const st = fs.statSync(fp);
+        return { fp, size: st.size, atime: st.atimeMs };
+      });
+    let total = files.reduce((s, f) => s + f.size, 0);
+    if (total <= MAX_CACHE_BYTES) return;
+    files.sort((a, b) => a.atime - b.atime); // 最旧的在前
+    for (const f of files) {
+      if (total <= MAX_CACHE_BYTES) break;
+      try { fs.unlinkSync(f.fp); total -= f.size; } catch (e) {}
+    }
+  } catch (e) { /* 忽略清理错误 */ }
+}
+
+// 完整下载远程音频到目标文件（支持重定向）
+function downloadFull(url, dest, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) return reject(new Error('Too many redirects'));
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: { ...BILIBILI_HEADERS, 'Accept': '*/*', 'Accept-Encoding': 'identity' },
+      timeout: 30000,
+    };
+    const dreq = protocol.request(options, (dres) => {
+      if ([301, 302, 303, 307, 308].includes(dres.statusCode) && dres.headers.location) {
+        dres.resume();
+        const next = new URL(dres.headers.location, url).toString();
+        return downloadFull(next, dest, redirectCount + 1).then(resolve, reject);
+      }
+      if (dres.statusCode !== 200) {
+        dres.resume();
+        return reject(new Error(`Upstream status ${dres.statusCode}`));
+      }
+      const out = fs.createWriteStream(dest);
+      dres.pipe(out);
+      out.on('finish', () => out.close(() => resolve(dest)));
+      out.on('error', reject);
+      dres.on('error', reject);
+    });
+    dreq.on('error', reject);
+    dreq.on('timeout', () => dreq.destroy(new Error('Download timeout')));
+    dreq.end();
+  });
+}
+
+// 确保某首歌已缓存到本地（并发去重）。返回 Promise<filePath>
+function ensureCached(bvid, cid, audioUrl) {
+  const file = cachePath(bvid, cid);
+  if (fs.existsSync(file)) {
+    try { fs.utimesSync(file, new Date(), new Date()); } catch (e) {} // 更新访问时间(LRU)
+    return Promise.resolve(file);
+  }
+  const key = `${bvid}_${cid}`;
+  if (inFlight.has(key)) return inFlight.get(key);
+
+  const tmp = file + '.part';
+  const p = downloadFull(audioUrl, tmp)
+    .then(() => { fs.renameSync(tmp, file); evictIfNeeded(); return file; })
+    .catch((err) => {
+      try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
+      throw err;
+    })
+    .finally(() => inFlight.delete(key));
+  inFlight.set(key, p);
+  return p;
+}
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, 'public')));
@@ -335,6 +427,24 @@ app.get('/api/video-info', async (req, res) => {
  * GET /api/audio-stream?bvid=BVxxxx&cid=xxxxx
  * 代理音频流
  */
+// 解析最高音质的 DASH 音频直链；cid 缺失时自动补全。返回 { cid, audioUrl }
+async function resolveAudioUrl(bvid, cid) {
+  if (!cid) {
+    const viewData = await fetchJSON(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
+    if (viewData.code !== 0) throw new Error(viewData.message || '视频不存在');
+    cid = viewData.data.cid;
+  }
+  const playUrl = `https://api.bilibili.com/x/player/playurl?bvid=${bvid}&cid=${cid}&fnval=16&fnver=0&fourk=1`;
+  const playData = await fetchJSON(playUrl);
+  if (playData.code !== 0) throw new Error(playData.message || '无法获取播放地址');
+  const dash = playData.data?.dash;
+  if (!dash || !dash.audio || dash.audio.length === 0) throw new Error('无法获取音频流');
+  const audioStream = dash.audio.reduce((best, cur) => (cur.bandwidth > best.bandwidth ? cur : best), dash.audio[0]);
+  const audioUrl = audioStream.baseUrl || audioStream.base_url;
+  if (!audioUrl) throw new Error('音频 URL 不可用');
+  return { cid, audioUrl };
+}
+
 app.get('/api/audio-stream', async (req, res) => {
   try {
     const bvid = extractBvid(req.query.bvid);
@@ -344,49 +454,62 @@ app.get('/api/audio-stream', async (req, res) => {
       return res.status(400).json({ error: '无效的 BV 号' });
     }
 
-    // 如果没提供 cid，先获取
-    if (!cid) {
-      const viewUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`;
-      const viewData = await fetchJSON(viewUrl);
-      if (viewData.code !== 0) {
-        return res.status(404).json({ error: '视频不存在' });
+    // 1) 已缓存到本地 → 直接用本地文件响应（原生支持 Range，完全脱离 B站，最稳）
+    if (cid) {
+      const file = cachePath(bvid, cid);
+      if (fs.existsSync(file)) {
+        try { fs.utimesSync(file, new Date(), new Date()); } catch (e) {}
+        return res.sendFile(file, {
+          headers: { 'Content-Type': 'audio/mp4', 'Cache-Control': 'public, max-age=86400' },
+        });
       }
-      cid = viewData.data.cid;
     }
 
-    // 获取 DASH 格式的播放 URL（fnval=16 表示 DASH）
-    const playUrl = `https://api.bilibili.com/x/player/playurl?bvid=${bvid}&cid=${cid}&fnval=16&fnver=0&fourk=1`;
-    const playData = await fetchJSON(playUrl);
+    // 2) 未缓存 → 解析直链：后台静默缓存入盘，同时实时代理保证立即起播
+    const resolved = await resolveAudioUrl(bvid, cid);
+    cid = resolved.cid;
 
-    if (playData.code !== 0) {
-      return res.status(404).json({ error: playData.message || '无法获取播放地址' });
+    const file = cachePath(bvid, cid);
+    if (fs.existsSync(file)) {
+      try { fs.utimesSync(file, new Date(), new Date()); } catch (e) {}
+      return res.sendFile(file, {
+        headers: { 'Content-Type': 'audio/mp4', 'Cache-Control': 'public, max-age=86400' },
+      });
     }
 
-    const dash = playData.data?.dash;
-    if (!dash || !dash.audio || dash.audio.length === 0) {
-      return res.status(404).json({ error: '无法获取音频流' });
-    }
+    ensureCached(bvid, cid, resolved.audioUrl).catch((e) => {
+      console.warn(`[Cache] 缓存失败 ${bvid}_${cid}:`, e.message);
+    });
 
-    // 选择最高质量的音频流
-    const audioStream = dash.audio.reduce((best, current) => {
-      return (current.bandwidth > best.bandwidth) ? current : best;
-    }, dash.audio[0]);
-
-    const audioUrl = audioStream.baseUrl || audioStream.base_url;
-
-    if (!audioUrl) {
-      return res.status(404).json({ error: '音频 URL 不可用' });
-    }
-
-    // 代理音频流
-    proxyStream(audioUrl, {
-      'Referer': 'https://www.bilibili.com',
-    }, req, res);
+    proxyStream(resolved.audioUrl, { 'Referer': 'https://www.bilibili.com' }, req, res);
   } catch (err) {
     console.error('Audio stream error:', err.message);
     if (!res.headersSent) {
       res.status(500).json({ error: '获取音频流失败' });
     }
+  }
+});
+
+/**
+ * GET /api/prefetch?bvid=BVxxxx&cid=xxxxx
+ * 预缓存下一首：只触发后台下载，立即返回，不阻塞
+ */
+app.get('/api/prefetch', async (req, res) => {
+  try {
+    const bvid = extractBvid(req.query.bvid);
+    let cid = req.query.cid;
+    if (!bvid) return res.status(400).json({ error: '无效的 BV 号' });
+
+    if (cid && fs.existsSync(cachePath(bvid, cid))) {
+      return res.json({ status: 'cached' });
+    }
+
+    res.json({ status: 'caching' }); // 立即返回，下载在后台进行
+    resolveAudioUrl(bvid, cid)
+      .then(({ cid: rcid, audioUrl }) => ensureCached(bvid, rcid, audioUrl))
+      .catch((e) => console.warn(`[Prefetch] ${bvid} 失败:`, e.message));
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: '预缓存失败' });
   }
 });
 
